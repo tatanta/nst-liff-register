@@ -31,8 +31,7 @@
 <script>
   // ▼ 設定項目 ▼
   const LIFF_ID = "2010898635-Chwg9aiE";                 // LINE Developersで発行したLIFF ID
-  const GAS_ENDPOINT = "
-https://tatanta.github.io/nst-liff-register/";     // Code.gs をデプロイしたWebアプリURL(doPost用)
+  const GAS_ENDPOINT = "https://tatanta.github.io/nst-liff-register/";     // Code.gs をデプロイしたWebアプリURL(doPost用)
   // ▲ 設定項目 ▲
 
   function showMessage(text, isError) {
@@ -40,6 +39,20 @@ https://tatanta.github.io/nst-liff-register/";     // Code.gs をデプロイし
     const el = document.getElementById("message");
     el.textContent = text;
     el.className = "msg " + (isError ? "err" : "ok");
+  }
+
+  function setStatus(text) {
+    document.getElementById("message").textContent = text;
+  }
+
+  // 指定時間内にpromiseが終わらなければタイムアウトさせるヘルパー
+  function withTimeout(promise, ms, label) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("timeout:" + label)), ms)
+      )
+    ]);
   }
 
   async function main() {
@@ -52,18 +65,20 @@ https://tatanta.github.io/nst-liff-register/";     // Code.gs をデプロイし
     }
 
     try {
-      await liff.init({ liffId: LIFF_ID });
+      setStatus("LIFF初期化中…(cid=" + cid + ")");
+      await withTimeout(liff.init({ liffId: LIFF_ID }), 10000, "liff.init");
 
       if (!liff.isLoggedIn()) {
-        // redirectUriを指定せず、LIFFの標準機能に現在のURL(cid込み)を
-        // 自動で覚えておいてもらい、ログイン後にそのまま戻してもらう
+        setStatus("ログインへ移動します…");
         liff.login();
         return; // ログイン後にリダイレクトされ再度main()が走る
       }
 
-      const profile = await liff.getProfile();
+      setStatus("プロフィール取得中…");
+      const profile = await withTimeout(liff.getProfile(), 10000, "getProfile");
 
-      const res = await fetch(GAS_ENDPOINT, {
+      setStatus("サーバーへ送信中…");
+      const res = await withTimeout(fetch(GAS_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "text/plain" }, // GAS側のCORS制約回避のためtext/plainで送る
         body: JSON.stringify({
@@ -71,9 +86,10 @@ https://tatanta.github.io/nst-liff-register/";     // Code.gs をデプロイし
           userId: profile.userId,
           displayName: profile.displayName
         })
-      });
+      }), 10000, "fetch");
 
-      const result = await res.json();
+      setStatus("応答を確認中…");
+      const result = await withTimeout(res.json(), 10000, "res.json");
 
       if (result.status === "ok") {
         showMessage("登録が完了しました。このページは閉じていただいて大丈夫です。", false);
@@ -81,7 +97,7 @@ https://tatanta.github.io/nst-liff-register/";     // Code.gs をデプロイし
         showMessage("登録に失敗しました。担当者にご連絡ください。(" + (result.message || "") + ")", true);
       }
     } catch (e) {
-      showMessage("エラーが発生しました。担当者にご連絡ください。", true);
+      showMessage("エラーが発生しました(" + e.message + ")。担当者にご連絡ください。", true);
       console.error(e);
     }
   }
