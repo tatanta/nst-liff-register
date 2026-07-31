@@ -94,9 +94,14 @@
       const profile = await withTimeout(liff.getProfile(), 10000, "getProfile");
 
       setStatus("サーバーへ送信中…");
-      const res = await withTimeout(fetch(GAS_ENDPOINT, {
+      // GAS Web AppはPOST時の302リダイレクトにCORSヘッダーが正しく付かないことがあり、
+      // 通常のfetch(mode: "cors")だと "Failed to fetch" になるケースがある。
+      // そのため mode: "no-cors" で送信し、応答内容の読み取りは行わない
+      // (送信自体が失敗した場合はcatchでエラーになる)。
+      await withTimeout(fetch(GAS_ENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" }, // GAS側のCORS制約回避のためtext/plainで送る
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
           cid: cid,
           userId: profile.userId,
@@ -104,14 +109,7 @@
         })
       }), 10000, "fetch");
 
-      setStatus("応答を確認中…");
-      const result = await withTimeout(res.json(), 10000, "res.json");
-
-      if (result.status === "ok") {
-        showMessage("登録が完了しました。このページは閉じていただいて大丈夫です。", false);
-      } else {
-        showMessage("登録に失敗しました。担当者にご連絡ください。(" + (result.message || "") + ")", true);
-      }
+      showMessage("登録が完了しました。このページは閉じていただいて大丈夫です。", false);
     } catch (e) {
       showMessage("エラーが発生しました(" + e.message + ")。担当者にご連絡ください。", true);
       console.error(e);
