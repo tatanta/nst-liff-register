@@ -54,9 +54,9 @@
       await liff.init({ liffId: LIFF_ID });
 
       if (!liff.isLoggedIn()) {
-        const redirectUri = window.location.origin + window.location.pathname
-          + "?cid=" + encodeURIComponent(cid);
-        liff.login({ redirectUri: redirectUri });
+        // redirectUriを指定せず、LIFFの標準機能に現在のURL(cid込み)を
+        // 自動で覚えておいてもらい、ログイン後にそのまま戻してもらう
+        liff.login();
         return; // ログイン後にリダイレクトされ再度main()が走る
       }
 
