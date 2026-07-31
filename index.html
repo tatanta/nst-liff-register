@@ -31,7 +31,7 @@
 <script>
   // ▼ 設定項目 ▼
   const LIFF_ID = "2010898635-Chwg9aiE";                 // LINE Developersで発行したLIFF ID
-  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwxxx5mOpbQZnFjLyiQqe3BLukI33qltS2nccNhoDbgIz-ZTzfwlW50dJGh2aB9XJAx/exec";     // Code.gs をデプロイしたWebアプリURL(doPost用)
+  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwxxx5mOpbQZnFjLyiQqe3BLukI33qltS2nccNhoDbglz-ZTzfwlW50dJGh2aB9XJAx/exec";     // Code.gs をデプロイしたWebアプリURL(doPost用)
   // ▲ 設定項目 ▲
 
   function showMessage(text, isError) {
@@ -94,16 +94,17 @@
       const profile = await withTimeout(liff.getProfile(), 10000, "getProfile");
 
       setStatus("サーバーへ送信中…");
-      // GAS Web AppはPOST時のリダイレクトが絡むと doPost ではなく doGet として
-      // 着地してしまう事例が確認されたため、最初からGETでデータを送る。
       const sendUrl = GAS_ENDPOINT
         + "?cid=" + encodeURIComponent(cid)
         + "&userId=" + encodeURIComponent(profile.userId)
         + "&displayName=" + encodeURIComponent(profile.displayName || "");
 
-      await withTimeout(fetch(sendUrl, { method: "GET", mode: "no-cors" }), 10000, "fetch");
+      // no-corsだと失敗していても画面上は「成功」に見えてしまっていたため、
+      // 実際の成否が分かるよう通常モード(cors)で送信し、応答内容も画面に出す
+      const res = await withTimeout(fetch(sendUrl, { method: "GET" }), 10000, "fetch");
+      const resultText = await withTimeout(res.text(), 10000, "res.text");
 
-      showMessage("登録が完了しました。このページは閉じていただいて大丈夫です。", false);
+      showMessage("登録が完了しました。応答: " + resultText, false);
     } catch (e) {
       showMessage("エラーが発生しました(" + e.message + ")。担当者にご連絡ください。", true);
       console.error(e);
