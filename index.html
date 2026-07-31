@@ -99,12 +99,18 @@
         + "&userId=" + encodeURIComponent(profile.userId)
         + "&displayName=" + encodeURIComponent(profile.displayName || "");
 
-      // no-corsだと失敗していても画面上は「成功」に見えてしまっていたため、
-      // 実際の成否が分かるよう通常モード(cors)で送信し、応答内容も画面に出す
-      const res = await withTimeout(fetch(sendUrl, { method: "GET" }), 10000, "fetch");
-      const resultText = await withTimeout(res.text(), 10000, "res.text");
+      // fetchだとブラウザのCORS制約でブロックされる(Failed to fetch)ことが確認できたため、
+      // <img>タグでのリクエスト送信に切り替える。画像読み込みはCORSの制約を受けず、
+      // GET同然にサーバー側へリクエストを届けられる(応答本文は読めないが今回は不要)。
+      await withTimeout(new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => resolve(); // GASはJSON応答(非画像)を返すため通常ここに来るが、
+                                        // リクエスト自体は届いているので成功扱いにする
+        img.src = sendUrl;
+      }), 10000, "img-beacon");
 
-      showMessage("登録が完了しました。応答: " + resultText, false);
+      showMessage("登録が完了しました。このページは閉じていただいて大丈夫です。", false);
     } catch (e) {
       showMessage("エラーが発生しました(" + e.message + ")。担当者にご連絡ください。", true);
       console.error(e);
