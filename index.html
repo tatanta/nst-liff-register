@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登録</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.24.0/sdk.js"></script>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    text-align: center;
+    padding: 40px 20px;
+    color: #333;
+  }
+  .msg { font-size: 16px; margin-top: 20px; line-height: 1.6; }
+  .spinner {
+    width: 40px; height: 40px; margin: 0 auto;
+    border: 4px solid #eee; border-top: 4px solid #06C755;
+    border-radius: 50%; animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ok { color: #06C755; font-weight: bold; }
+  .err { color: #e74c3c; font-weight: bold; }
+</style>
+</head>
+<body>
+
+  <div id="spinner" class="spinner"></div>
+  <p id="message" class="msg">登録処理中です…</p>
+
+<script>
+  // ▼ 設定項目 ▼
+  const LIFF_ID = "2010898635-Chwg9aiE";                 // LINE Developersで発行したLIFF ID
+  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwxxx5mOpbQZnFjLyiQqe3BLukI33qltS2nccNhoDbglz-ZTzfwlW50dJGh2aB9XJAx/exec";     // Code.gs をデプロイしたWebアプリURL(doPost用)
+  // ▲ 設定項目 ▲
+
+  function showMessage(text, isError) {
+    document.getElementById("spinner").style.display = "none";
+    const el = document.getElementById("message");
+    el.textContent = text;
+    el.className = "msg " + (isError ? "err" : "ok");
+  }
+
+  async function main() {
+    const params = new URLSearchParams(window.location.search);
+    const cid = params.get("cid"); // kintoneのレコード番号
+
+    if (!cid) {
+      showMessage("リンクが正しくありません。担当者にご連絡ください。", true);
+      return;
+    }
+
+    try {
+      await liff.init({ liffId: LIFF_ID });
+
+      if (!liff.isLoggedIn()) {
+        const redirectUri = window.location.origin + window.location.pathname
+          + "?cid=" + encodeURIComponent(cid);
+        liff.login({ redirectUri: redirectUri });
+        return; // ログイン後にリダイレクトされ再度main()が走る
+      }
+
+      const profile = await liff.getProfile();
+
+      const res = await fetch(GAS_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" }, // GAS側のCORS制約回避のためtext/plainで送る
+        body: JSON.stringify({
+          cid: cid,
+          userId: profile.userId,
+          displayName: profile.displayName
+        })
+      });
+
+      const result = await res.json();
+
+      if (result.status === "ok") {
+        showMessage("登録が完了しました。このページは閉じていただいて大丈夫です。", false);
+      } else {
+        showMessage("登録に失敗しました。担当者にご連絡ください。(" + (result.message || "") + ")", true);
+      }
+    } catch (e) {
+      showMessage("エラーが発生しました。担当者にご連絡ください。", true);
+      console.error(e);
+    }
+  }
+
+  main();
+</script>
+</body>
+</html>
