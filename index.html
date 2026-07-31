@@ -55,9 +55,25 @@
     ]);
   }
 
+  // liff.line.meを経由すると、LINEが自動付与する"liff.state"パラメータに
+  // こちらのcidが巻き込まれて消える/読めなくなることがあるため、
+  // liff.state部分を取り除いた上でcidを取得する
+  function getCid() {
+    const rawSearch = window.location.search;
+    if (rawSearch.includes("liff.state=")) {
+      const decoded = decodeURIComponent(rawSearch);
+      const idx = decoded.indexOf("liff.state=");
+      let rest = decoded.substring(idx + "liff.state=".length);
+      if (rest.startsWith("?")) rest = rest.substring(1);
+      const queries = new URLSearchParams(rest);
+      const cidFromState = queries.get("cid");
+      if (cidFromState) return cidFromState;
+    }
+    return new URLSearchParams(rawSearch).get("cid");
+  }
+
   async function main() {
-    const params = new URLSearchParams(window.location.search);
-    const cid = params.get("cid"); // kintoneのレコード番号
+    const cid = getCid(); // kintoneのレコード番号
 
     if (!cid) {
       showMessage("リンクが正しくありません。担当者にご連絡ください。", true);
