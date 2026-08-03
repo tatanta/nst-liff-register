@@ -99,18 +99,11 @@
         + "&userId=" + encodeURIComponent(profile.userId)
         + "&displayName=" + encodeURIComponent(profile.displayName || "");
 
-      // fetchだとブラウザのCORS制約でブロックされる(Failed to fetch)ことが確認できたため、
-      // <img>タグでのリクエスト送信に切り替える。画像読み込みはCORSの制約を受けず、
-      // GET同然にサーバー側へリクエストを届けられる(応答本文は読めないが今回は不要)。
-      await withTimeout(new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve();
-        img.onerror = () => resolve(); // GASはJSON応答(非画像)を返すため通常ここに来るが、
-                                        // リクエスト自体は届いているので成功扱いにする
-        img.src = sendUrl;
-      }), 10000, "img-beacon");
-
-      showMessage("登録が完了しました。このページは閉じていただいて大丈夫です。", false);
+      // fetch/imgでのバックグラウンド送信がこの環境(LINEアプリ内ブラウザ)では
+      // 一切GASに届かないことが確認できたため、確実に届くページ全体の遷移で送信する。
+      // 完了後の見た目はGAS側(doGet)が返すHTMLで整える。
+      window.location.href = sendUrl;
+      return; // 以降は遷移先のページで完結する
     } catch (e) {
       showMessage("エラーが発生しました(" + e.message + ")。担当者にご連絡ください。", true);
       console.error(e);
