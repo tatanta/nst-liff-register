@@ -3,42 +3,70 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>登録</title>
+<title>NST採用本部 - 登録</title>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.24.0/sdk.js"></script>
 <style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
-    text-align: center;
-    padding: 40px 20px;
-    color: #333;
+  :root {
+    --nst-blue: #1E51A2;
+    --nst-orange: #F39801;
+    --nst-gray: #5A5657;
   }
-  .msg { font-size: 16px; margin-top: 20px; line-height: 1.6; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #f7f9fc 0%, #eef2f8 100%);
+    color: var(--nst-gray);
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 360px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 28px rgba(30, 81, 162, 0.12);
+    padding: 36px 28px 32px;
+    text-align: center;
+  }
+  .logo { width: 132px; height: auto; margin: 0 auto 22px; display: block; }
   .spinner {
-    width: 40px; height: 40px; margin: 0 auto;
-    border: 4px solid #eee; border-top: 4px solid #06C755;
-    border-radius: 50%; animation: spin 1s linear infinite;
+    width: 34px; height: 34px; margin: 4px auto 18px;
+    border: 3.5px solid #e7edf6; border-top: 3.5px solid var(--nst-blue);
+    border-radius: 50%; animation: spin 0.9s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .ok { color: #06C755; font-weight: bold; }
-  .err { color: #e74c3c; font-weight: bold; }
+  .msg { font-size: 14.5px; line-height: 1.7; color: var(--nst-gray); }
+  .msg.err { color: #d64545; font-weight: 600; }
+  .accent-bar {
+    height: 4px; width: 56px; margin: 0 auto 20px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--nst-orange), var(--nst-blue));
+  }
 </style>
 </head>
 <body>
 
-  <div id="spinner" class="spinner"></div>
-  <p id="message" class="msg">登録処理中です…</p>
+  <div class="card">
+    <img class="logo" src="nst_logo.jpg" alt="NST">
+    <div class="accent-bar"></div>
+    <div id="spinner" class="spinner"></div>
+    <p id="message" class="msg">登録処理中です…</p>
+  </div>
 
 <script>
   // ▼ 設定項目 ▼
   const LIFF_ID = "2010898635-Chwg9aiE";                 // LINE Developersで発行したLIFF ID
-  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwxxx5mOpbQZnFjLyiQqe3BLukI33qltS2nccNhoDbgIz-ZTzfwlW50dJGh2aB9XJAx/exec";     // Code.gs をデプロイしたWebアプリURL(doPost用)
+  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwxxx5mOpbQZnFjLyiQqe3BLukI33qltS2nccNhoDbglz-ZTzfwlW50dJGh2aB9XJAx/exec";     // Code.gs をデプロイしたWebアプリURL
   // ▲ 設定項目 ▲
 
   function showMessage(text, isError) {
     document.getElementById("spinner").style.display = "none";
     const el = document.getElementById("message");
     el.textContent = text;
-    el.className = "msg " + (isError ? "err" : "ok");
+    el.className = "msg" + (isError ? " err" : "");
   }
 
   function setStatus(text) {
@@ -81,31 +109,29 @@
     }
 
     try {
-      setStatus("LIFF初期化中…(cid=" + cid + ")");
+      setStatus("読み込んでいます…");
       await withTimeout(liff.init({ liffId: LIFF_ID }), 10000, "liff.init");
 
       if (!liff.isLoggedIn()) {
-        setStatus("ログインへ移動します…");
+        setStatus("LINEログインへ移動します…");
         liff.login();
         return; // ログイン後にリダイレクトされ再度main()が走る
       }
 
-      setStatus("プロフィール取得中…");
+      setStatus("情報を確認しています…");
       const profile = await withTimeout(liff.getProfile(), 10000, "getProfile");
 
-      setStatus("サーバーへ送信中…");
+      setStatus("登録しています…");
       const sendUrl = GAS_ENDPOINT
         + "?cid=" + encodeURIComponent(cid)
         + "&userId=" + encodeURIComponent(profile.userId)
         + "&displayName=" + encodeURIComponent(profile.displayName || "");
 
-      // fetch/imgでのバックグラウンド送信がこの環境(LINEアプリ内ブラウザ)では
-      // 一切GASに届かないことが確認できたため、確実に届くページ全体の遷移で送信する。
-      // 完了後の見た目はGAS側(doGet)が返すHTMLで整える。
+      // ページ全体を遷移させて送信する。完了後の見た目はGAS側(doGet)が返すHTMLで整える。
       window.location.href = sendUrl;
-      return; // 以降は遷移先のページで完結する
+      return;
     } catch (e) {
-      showMessage("エラーが発生しました(" + e.message + ")。担当者にご連絡ください。", true);
+      showMessage("エラーが発生しました。お手数ですが担当者にご連絡ください。", true);
       console.error(e);
     }
   }
